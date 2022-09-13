@@ -4,7 +4,7 @@ Authorization: Basic joe:
 GET http://localhost:4004/catalog/$metadata
 Authorization: Basic joe:
 ###
-GET http://localhost:4004/catalog/Sales
+GET http://localhost:4004/catalog/Encontros?$expand=todos
 Authorization: Basic joe:
 ###
 POST http://localhost:4004/catalog/Sales(1)/CatalogService.boost
@@ -13,9 +13,15 @@ Content-Type: application/json
 
 {}
 ###
-GET http://localhost:4004/catalog/Sales?$apply=filter(amount%20gt%20500)/groupby((region),aggregate($count%20as%20nrCountries))
-Authorization: Basic joe:
-###
 GET http://localhost:4004/catalog/userInfo()
 Authorization: Basic joe:
 ###
+POST http://localhost:4004/catalog/Encontros
+Authorization: Basic julie:
+Content-Type: application/json
+
+{
+      "titulo": "Titulo 2",
+      "resumo": "Texto to resumo",
+      "data": "2022-08-23"
+}
