@@ -7,6 +7,11 @@ annotate catalog.Encontros with @(UI : {
         {Value : ID},
         {Value : titulo},
         {Value : data},
+        {
+            Value       : priotiry.name,
+            Criticality : priotiry_code
+        },
+
     ],
     HeaderInfo       : {
         TypeName       : '{i18n>titulo}',
@@ -14,18 +19,22 @@ annotate catalog.Encontros with @(UI : {
         Title          : {Value : titulo},
         Description    : {Value : data}
     },
-    Facets           : [{
-        $Type  : 'UI.ReferenceFacet',
-        Label  : 'Main',
-        Target : '@UI.FieldGroup#Main'
-    },{
-        $Type  : 'UI.ReferenceFacet',
-        Label  : 'Todos',
+    Facets           : [
+        {
+            $Type  : 'UI.ReferenceFacet',
+            Label  : 'Main',
+            Target : '@UI.FieldGroup#Main'
+        },
+        {
+            $Type  : 'UI.ReferenceFacet',
+            Label  : 'Todos',
             Target : 'todos/@UI.LineItem'
-    }, ],
+        },
+    ],
     FieldGroup #Main : {Data : [
         {Value : resumo},
-        {Value : titulo}
+        {Value : titulo},
+        {Value : priotiry_code}
     ]}
 }, );
 
@@ -38,4 +47,5 @@ annotate catalog.Todos with @(UI : {LineItem : [
 annotate catalog.Encontros with {
     resumo @title : 'Resumo';
     titulo @title : 'Título';
+    priotiry @title : 'Pioridade';
 }
