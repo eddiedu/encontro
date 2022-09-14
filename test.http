@@ -21,7 +21,7 @@ Authorization: Basic julie:
 Content-Type: application/json
 
 {
-      "titulo": "Titulo 2",
+      "titulo": "Titulo 2 2",
       "resumo": "Texto to resumo",
       "data": "2022-08-23"
 }
