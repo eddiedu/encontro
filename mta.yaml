@@ -1,210 +1,184 @@
-_schema-version: '3.2'
+_schema-version: "3.2"
 ID: encontro
 version: 0.0.1
-
+modules:
+- name: encontro-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: encontro-uaa
+  - name: encontro-db
+  parameters:
+    buildpack: nodejs_buildpack
+    disk-quota: 1024M
+    memory: 256M
+  build-parameters:
+    ignore:
+    - default-*.json
+    - .env
+    - '*node_modules*'
+    - package-lock.json
+- name: encontro-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: encontro-uaa
+  - name: encontro-db
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    disk-quota: 1024M
+    memory: 512M
+  build-parameters:
+    ignore:
+    - default-*.json
+    - .env
+    - '*node_modules*'
+    - package-lock.json
+- name: encontro-html5
+  type: html5
+  path: app/html5
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: encontro-fiori
+  type: html5
+  path: app/fiori
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: encontro-ui-deployer
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: encontro-html5repo
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: gen/app
+    requires:
+    - artifacts:
+      - html5-content.zip
+      name: encontro-html5
+      target-path: gen/app
+    - artifacts:
+      - fiori-content.zip
+      name: encontro-fiori
+      target-path: gen/app
+    - artifacts:
+      - todo.zip
+      name: todo
+      target-path: gen/app/
+- name: encontro-dest-content
+  type: com.sap.application.content
+  requires:
+  - name: encontro-uaa
+    parameters:
+      service-key:
+        name: encontro-uaa-sk
+  - name: encontro-dest
+    parameters:
+      content-target: true
+  - name: encontro-html5repo
+    parameters:
+      service-key:
+        name: encontro-html5repo-sk
+  - name: srv-api
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Authentication: OAuth2UserTokenExchange
+          Name: encontro-service-encontro-uaa
+          ServiceInstanceName: encontro-uaa
+          ServiceKeyName: encontro-uaa-sk
+          sap.cloud.service: encontro-service
+        - Name: encontro-service-encontro-html5repo
+          ServiceInstanceName: encontro-html5repo
+          ServiceKeyName: encontro-html5repo-sk
+          sap.cloud.service: encontro-service
+        - Authentication: OAuth2UserTokenExchange
+          Description: Encontro - Server Module
+          Name: encontro-srv
+          TokenServiceInstanceName: encontro-uaa
+          TokenServiceKeyName: encontro-uaa-sk
+          URL: ~{srv-api/srv-url}
+          sap.cloud.service: encontro-service
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+- name: todo
+  type: html5
+  path: app/todo
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+resources:
+- name: encontro-uaa
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+- name: encontro-dest
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Description: SAPUI5
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          - Authentication: NoAuthentication
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
+            Name: encontro-srv-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+          existing_destinations_policy: ignore
+    service: destination
+    service-plan: lite
+  requires:
+  - name: srv-api
+- name: encontro-html5repo
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-host
+- name: encontro-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+  properties:
+    hdi-service-name: ${service-name}
 parameters:
-  enable-parallel-deployments: true
   deploy_mode: html5-repo
-
+  enable-parallel-deployments: true
 build-parameters:
   before-all:
-    - builder: custom
-      commands:
-        - npm install --production
-        - npx -p @sap/cds-dk cds build --production
-#        - npx rimraf gen/db/src/gen/data # uncomment this line to prevent loading of initial data which is only relevant for dev/test deployments 
-#        - npx rimraf gen/db/src/gen/csv  # uncomment this line unless db/csv folder has been used for config/control table data which is entirely managed by the developer and never changed by the app
-
-modules:
-  # ---------------- DATABASE DEPLOYER MODULE ------------------
-  - name: encontro-db-deployer
-  # ------------------------------------------------------------
-    type: hdb
-    path: gen/db
-    build-parameters:
-      ignore:
-        - default-*.json
-        - .env
-        - "*node_modules*"
-        - package-lock.json
-    parameters:
-      buildpack: nodejs_buildpack
-      memory: 256M
-      disk-quota: 1024M
-    requires:
-      - name: encontro-uaa
-      - name: encontro-db
-
-  # --------------------- SERVER MODULE ------------------------
-  - name: encontro-srv
-  # ------------------------------------------------------------
-    type: nodejs
-    path: gen/srv
-    build-parameters:
-      ignore:
-        - default-*.json
-        - .env
-        - "*node_modules*"
-        - package-lock.json
-    parameters:
-      buildpack: nodejs_buildpack
-      memory: 512M
-      disk-quota: 1024M
-    requires:
-      - name: encontro-uaa
-      - name: encontro-db
-    provides:
-      - name: srv-api
-        properties:
-          srv-url: ${default-url}
-
-
-
-
-
-  # ----------- HTML5 APP REPOSITORY APP HTML5 MODULE ----------
-  - name: encontro-html5
-  # ------------------------------------------------------------
-    type: html5
-    path: app/html5
-    build-parameters:
-      build-result: dist
-      builder: custom
-      commands:
-        - npm install
-        - npm run build:cf
-      supported-platforms: []
-
-  # ----------- HTML5 APP REPOSITORY APP FIORI MODULE ----------
-  - name: encontro-fiori
-  # ------------------------------------------------------------
-    type: html5
-    path: app/fiori
-    build-parameters:
-      build-result: dist
-      builder: custom
-      commands:
-        - npm install
-        - npm run build:cf
-      supported-platforms: []
-
-  # ----------- HTML5 APP REPOSITORY DEPLOYER MODULE -----------
-  - name: encontro-ui-deployer
-  # ------------------------------------------------------------
-    type: com.sap.application.content
-    path: .
-    requires:
-      - name: encontro-html5repo
-        parameters:
-          content-target: true
-    build-parameters:
-      build-result: gen/app
-      requires:
-        - artifacts:
-            - html5-content.zip
-          name: encontro-html5
-          target-path: gen/app
-        - artifacts:
-            - fiori-content.zip
-          name: encontro-fiori
-          target-path: gen/app
-
-  # ----- HTML5 APP REPOSITORY DESTINATION CONTENT MODULE ------
-  - name: encontro-dest-content
-  # ------------------------------------------------------------
-    type: com.sap.application.content
-    requires:
-      - name: encontro-uaa
-        parameters:
-          service-key:
-            name: encontro-uaa-sk
-      - name: encontro-dest
-        parameters:
-          content-target: true
-      - name: encontro-html5repo
-        parameters:
-          service-key:
-            name: encontro-html5repo-sk
-      - name: srv-api
-    parameters:
-      content:
-        instance:
-          existing_destinations_policy: ignore
-          destinations:
-            - Name: encontro-service-encontro-uaa
-              ServiceInstanceName: encontro-uaa
-              ServiceKeyName: encontro-uaa-sk
-              Authentication: OAuth2UserTokenExchange
-              sap.cloud.service: encontro-service
-            - Name: encontro-service-encontro-html5repo
-              ServiceInstanceName: encontro-html5repo
-              ServiceKeyName: encontro-html5repo-sk
-              sap.cloud.service: encontro-service
-            - Name: encontro-srv
-              Description: Encontro - Server Module
-              URL: ~{srv-api/srv-url}
-              TokenServiceInstanceName: encontro-uaa
-              TokenServiceKeyName: encontro-uaa-sk
-              Authentication: OAuth2UserTokenExchange
-              sap.cloud.service: encontro-service
-    build-parameters:
-      no-source: true
-
-resources:
-  # ----------------------- UAA SERVICE ------------------------
-  - name: encontro-uaa
-  # ------------------------------------------------------------
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: xsuaa
-      service-plan: application
-      path: ./xs-security.json
-
-  # -------------------- DESTINATION SERVICE -------------------
-  - name: encontro-dest
-  # ------------------------------------------------------------
-    type: org.cloudfoundry.managed-service
-    requires:
-      - name: srv-api
-    parameters:
-      service: destination
-      service-plan: lite
-      config:
-        HTML5Runtime_enabled: true
-        init_data:
-          instance:
-            existing_destinations_policy: ignore
-            destinations:
-              - Name: ui5
-                Description: SAPUI5
-                URL: https://ui5.sap.com
-                Type: HTTP
-                ProxyType: Internet
-                Authentication: NoAuthentication
-
-  # ----------- HTML5 APP REPOSITORY HOSTING SERVICE -----------
-  - name: encontro-html5repo
-  # ------------------------------------------------------------
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: html5-apps-repo
-      service-plan: app-host
-
-
-
-
-
-  # ------------------- HDI CONTAINER SERVICE ------------------
-  - name: encontro-db
-  # ------------------------------------------------------------
-    type: com.sap.xs.hdi-container
-    parameters:
-      service: hana
-      service-plan: hdi-shared
-    properties:
-      hdi-service-name: ${service-name}
-
-
-
-
-
+  - builder: custom
+    commands:
+    - npm install --production
+    - npx -p @sap/cds-dk cds build --production
