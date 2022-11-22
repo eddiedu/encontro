@@ -26,6 +26,7 @@ module.exports = cds.service.impl(async function () {
     if (req.user.hasOwnProperty("locale")) {
       results.locale = req.user.locale;
     }
+
     results.scopes = {};
     results.scopes.identified = req.user.is("identified-user");
     results.scopes.authenticated = req.user.is("authenticated-user");
